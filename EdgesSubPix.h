@@ -10,11 +10,11 @@ struct Contour
     std::vector<float> response;
 };
 // only 8-bit
-CV_EXPORTS void EdgesSubPix(cv::Mat &gray, double alpha, int low, int high,
+CV_EXPORTS void EdgesSubPix(cv::Mat &gray, cv::Mat &binary, double alpha, int low, int high,
                             std::vector<Contour> &contours, cv::OutputArray hierarchy,
                             int mode);
 
-CV_EXPORTS void EdgesSubPix(cv::Mat &gray, double alpha, int low, int high, 
+CV_EXPORTS void EdgesSubPix(cv::Mat &gray, cv::Mat &binary, double alpha, int low, int high,
                            std::vector<Contour> &contours);
 
 #endif // __EDGES_SUBPIX_H__
