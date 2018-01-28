@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
                         "{low            |40        | low threshold                 }"
                         "{high           |100       | high threshold                }"
                         "{mode           |1         | same as cv::findContours      }"
-                        "{alpha          |1.0       | gaussian alpha              }";
+                        "{alpha          |1.0       | gaussian alpha                }";
     CommandLineParser parser(argc, argv, keys);
     parser.about("subpixel edge detection");
 
@@ -72,6 +72,11 @@ int main(int argc, char *argv[])
         fs << "]";
         fs.release();
     }
+
+    cv::Mat rgb;
+    DrawContours(rgb, image, contours, cv::Scalar(0, 255, 0), 10);
+
+    cv::imwrite(outputFile, rgb);
 
     return 0;
 }

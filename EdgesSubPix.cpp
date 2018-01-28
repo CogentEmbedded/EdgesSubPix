@@ -447,4 +447,17 @@ void EdgesSubPix(Mat &gray, cv::Mat &binary, double alpha, int low, int high, ve
     EdgesSubPix(gray, binary, alpha, low, high, contours, hierarchy, RETR_LIST);
 }
 
+void DrawContours(cv::Mat &rgb, Mat &gray, const std::vector<Contour> &contours, const Scalar &color, const int scaleFactor)
+{
+    cv::Mat gray2;
+
+    cv::resize(gray, gray2, gray.size() * scaleFactor, 0, 0, CV_INTER_NN);
+    cv::cvtColor(gray2, rgb, CV_GRAY2BGR);
+
+    for (size_t i = 0; i < contours.size(); i++)
+        for (size_t j = 0; j < contours[i].points.size(); j++)
+        {
+            cv::Point2f b = scaleFactor * contours[i].points[j];
+            cv::line(rgb, b, b, color);
+        }
 }
