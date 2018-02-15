@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(EdgesSubPix)
 
-find_package(OpenCV REQUIRED)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 OPTION(WITH_OPENMP "Use OpenMP acceleration" OFF)
