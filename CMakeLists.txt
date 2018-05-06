@@ -26,3 +26,5 @@ target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 add_executable(Edge test_EdgesSubPix.cpp)
 target_link_libraries(Edge ${PROJECT_NAME} ${OpenCV_LIBS})
 
+add_test(NAME EdgeRuns
+    COMMAND Edge ${CMAKE_CURRENT_SOURCE_DIR}/test.png)
