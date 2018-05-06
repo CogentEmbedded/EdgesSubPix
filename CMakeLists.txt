@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.0)
 project(EdgesSubPix)
 
-find_package(OpenCV REQUIRED COMPONENTS core imgproc imgcodecs)
+find_package(OpenCV REQUIRED COMPONENTS core imgproc)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
 OPTION(WITH_OPENMP "Use OpenMP acceleration" OFF)
@@ -28,3 +28,14 @@ target_link_libraries(Edge ${PROJECT_NAME} ${OpenCV_LIBS})
 
 add_test(NAME EdgeRuns
     COMMAND Edge ${CMAKE_CURRENT_SOURCE_DIR}/test.png)
+
+#------------------------------------------------------------------------------
+# Installation
+#------------------------------------------------------------------------------
+install(TARGETS ${PROJECT_NAME}
+    EXPORT ${PROJECT_NAMESPACE}Config
+    RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
+    LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
+    RESOURCE DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAMESPACE}"
+    )
