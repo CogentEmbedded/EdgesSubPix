@@ -20,20 +20,9 @@ if (WIN32)
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
 endif()
 
-add_library(${PROJECT_NAME} EdgesSubPix.cpp EdgesSubPix.h)
+add_library(${PROJECT_NAME} STATIC EdgesSubPix.cpp EdgesSubPix.h)
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 
 add_executable(Edge test_EdgesSubPix.cpp)
 target_link_libraries(Edge ${PROJECT_NAME} ${OpenCV_LIBS})
 
-
-#------------------------------------------------------------------------------
-# Installation
-#------------------------------------------------------------------------------
-install(TARGETS ${PROJECT_NAME}
-    EXPORT ${PROJECT_NAMESPACE}Config
-    RUNTIME  DESTINATION ${CMAKE_INSTALL_BINDIR}
-    LIBRARY  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    ARCHIVE  DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    RESOURCE DESTINATION "${CMAKE_INSTALL_DATADIR}/${PROJECT_NAMESPACE}"
-    )
