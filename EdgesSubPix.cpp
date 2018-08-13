@@ -413,7 +413,7 @@ void extractSubPixPoints(Mat &dx, Mat &dy, vector<vector<Point> > &contoursInPix
 //---------------------------------------------------------------------
 //          INTERFACE FUNCTION
 //---------------------------------------------------------------------
-void EdgesSubPix(Mat &gray, cv::Mat &binary, double alpha, int low, int high,
+void EdgesSubPix(Mat &gray, double alpha, int low, int high,
     vector<Contour> &contours, OutputArray hierarchy, int mode)
 {
     Mat blur;
@@ -434,17 +434,17 @@ void EdgesSubPix(Mat &gray, cv::Mat &binary, double alpha, int low, int high,
 
     // contours in pixel precision
     vector<vector<Point> > contoursInPixel;
-    findContours(binary, contoursInPixel, hierarchy, mode, CHAIN_APPROX_NONE);
+    findContours(edge, contoursInPixel, hierarchy, mode, CHAIN_APPROX_NONE);
 
     // subpixel position extraction with steger's method and facet model 2nd polynominal in 3x3 neighbourhood
     extractSubPixPoints(dx, dy, contoursInPixel, contours);
 
 }
 
-void EdgesSubPix(Mat &gray, cv::Mat &binary, double alpha, int low, int high, vector<Contour> &contours)
+void EdgesSubPix(Mat &gray, double alpha, int low, int high, vector<Contour> &contours)
 {
     vector<Vec4i> hierarchy;
-    EdgesSubPix(gray, binary, alpha, low, high, contours, hierarchy, RETR_LIST);
+    EdgesSubPix(gray, alpha, low, high, contours, hierarchy, RETR_LIST);
 }
 
 void DrawContours(cv::Mat &rgb, Mat &gray, const std::vector<Contour> &contours, const Scalar &color, const int scaleFactor)
