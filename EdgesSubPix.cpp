@@ -361,51 +361,51 @@ static inline double vector2angle(double x, double y)
     return a >= 0.0 ? a : a + CV_2PI;
 }
 
-void extractSubPixPoints(Mat &dx, Mat &dy, vector<vector<Point> > &contoursInPixel, vector<Contour> &contours)
+void extractSubPixPoints(Mat &dx, Mat &dy, Mat &edge, EdgePoints &edge_points)
 {
     int w = dx.cols;
     int h = dx.rows;
-    contours.resize(contoursInPixel.size());
-    for (size_t i = 0; i < contoursInPixel.size(); ++i)
-    {
-        vector<Point> &icontour = contoursInPixel[i];
-        Contour &contour = contours[i];
-        contour.points.resize(icontour.size());
-        contour.response.resize(icontour.size());
-        contour.direction.resize(icontour.size());
+    edge_points.points.clear();
+    edge_points.direction.clear();
+    edge_points.response.clear();
+    for (int i = 0; i < edge.rows; i++) {
 #if defined(_OPENMP) && defined(NDEBUG)
 #pragma omp parallel for
 #endif
-        for (int j = 0; j < (int)icontour.size(); ++j)
-        {
-            vector<double> magNeighbour(9);
-            getMagNeighbourhood(dx, dy, icontour[j], w, h, magNeighbour);
-            vector<double> a(9);
-            get2ndFacetModelIn3x3(magNeighbour, a);
-           
-            // Hessian eigen vector 
-            double eigvec[2][2], eigval[2];
-            eigenvals(a, eigval, eigvec);
-            double t = 0.0;
-            double ny = eigvec[0][0];
-            double nx = eigvec[0][1];
-            if (eigval[0] < 0.0)
-            {
-                double rx = a[1], ry = a[2], rxy = a[4], rxx = a[3] * 2.0, ryy = a[5] * 2.0;
-                t = -(rx * nx + ry * ny) / (rxx * nx * nx + 2.0 * rxy * nx * ny + ryy * ny * ny);
+        for (int j = 0; j < edge.cols; j++) {
+            if (edge.at<uchar>(i, j) > 0) {
+                Point pt(j, i);
+                vector<double> magNeighbour(9);
+                getMagNeighbourhood(dx, dy, pt, w, h, magNeighbour);
+                vector<double> a(9);
+                get2ndFacetModelIn3x3(magNeighbour, a);
+
+                // Hessian eigen vector
+                double eigvec[2][2], eigval[2];
+                eigenvals(a, eigval, eigvec);
+                double t = 0.0;
+                double ny = eigvec[0][0];
+                double nx = eigvec[0][1];
+                if (eigval[0] < 0.0)
+                {
+                    double rx = a[1], ry = a[2], rxy = a[4], rxx = a[3] * 2.0,
+                           ryy = a[5] * 2.0;
+                    t = -(rx * nx + ry * ny) / (rxx * nx * nx + 2.0 *
+                            rxy * nx * ny + ryy * ny * ny);
+                }
+                double px = nx * t;
+                double py = ny * t;
+                float x = (float)pt.x;
+                float y = (float)pt.y;
+                if (fabs(px) <= 1 && fabs(py) <= 1)
+                {
+                    x += (float)px;
+                    y += (float)py;
+                }
+                edge_points.points.push_back(Point2f(x, y));
+                edge_points.response.push_back((float)(a[0] / scale));
+                edge_points.direction.push_back((float)vector2angle(ny, nx));
             }
-            double px = nx * t;
-            double py = ny * t;
-            float x = (float)icontour[j].x;
-            float y = (float)icontour[j].y;
-            if (fabs(px) <= 0.5 && fabs(py) <= 0.5)
-            { 
-                x += (float)px;
-                y += (float)py;
-            }
-            contour.points[j] = Point2f(x, y);
-            contour.response[j] = (float)(a[0] / scale);
-            contour.direction[j] = (float)vector2angle(ny, nx);
         }
     }
 }
@@ -413,8 +413,8 @@ void extractSubPixPoints(Mat &dx, Mat &dy, vector<vector<Point> > &contoursInPix
 //---------------------------------------------------------------------
 //          INTERFACE FUNCTION
 //---------------------------------------------------------------------
-void EdgesSubPix(Mat &gray, double alpha, int low, int high,
-    vector<Contour> &contours, OutputArray hierarchy, int mode)
+void EdgesSubPix(cv::Mat &gray, double alpha, int low, int high,
+                 EdgePoints &edge_points)
 {
     Mat blur;
     GaussianBlur(gray, blur, Size(0, 0), alpha, alpha);
@@ -432,32 +432,22 @@ void EdgesSubPix(Mat &gray, double alpha, int low, int high,
     int highThresh = cvRound(scale * high);
     postCannyFilter(gray, dx, dy, lowThresh, highThresh, edge);
 
-    // contours in pixel precision
-    vector<vector<Point> > contoursInPixel;
-    findContours(edge, contoursInPixel, hierarchy, mode, CHAIN_APPROX_NONE);
-
     // subpixel position extraction with steger's method and facet model 2nd polynominal in 3x3 neighbourhood
-    extractSubPixPoints(dx, dy, contoursInPixel, contours);
+    extractSubPixPoints(dx, dy, edge, edge_points);
 
 }
 
-void EdgesSubPix(Mat &gray, double alpha, int low, int high, vector<Contour> &contours)
-{
-    vector<Vec4i> hierarchy;
-    EdgesSubPix(gray, alpha, low, high, contours, hierarchy, RETR_LIST);
-}
-
-void DrawContours(cv::Mat &rgb, Mat &gray, const std::vector<Contour> &contours, const Scalar &color, const int scaleFactor)
+void DrawEdges(cv::Mat &rgb, cv::Mat &gray, const EdgePoints &edge_points,
+               const cv::Scalar &color, const int scaleFactor)
 {
     cv::Mat gray2;
 
-    cv::resize(gray, gray2, gray.size() * scaleFactor, 0, 0, CV_INTER_NN);
+    cv::resize(gray, gray2, gray.size() * scaleFactor, 0, 0, INTER_LINEAR);
     cv::cvtColor(gray2, rgb, CV_GRAY2BGR);
 
-    for (size_t i = 0; i < contours.size(); i++)
-        for (size_t j = 0; j < contours[i].points.size(); j++)
-        {
-            cv::Point2f b = scaleFactor * contours[i].points[j];
-            cv::line(rgb, b, b, color);
-        }
+    for (size_t i = 0; i < edge_points.points.size(); i++)
+    {
+        cv::Point2f b = scaleFactor * edge_points.points[i];
+        cv::line(rgb, b, b, color);
+    }
 }
