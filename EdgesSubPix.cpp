@@ -19,7 +19,7 @@ static void getCannyKernel(OutputArray _d, double alpha)
     double a2 = alpha * alpha;
     float sum = 0.0f;
     for (int x = 1; x <= r; ++x) {
-        float v = (float)(-x * std::exp(-x * x / (2 * a2)));
+        float v = (float)(x * std::exp(-x * x / (2 * a2)));
         sum += v;
         kerF[r + x] = v;
         kerF[r - x] = -v;
