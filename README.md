@@ -20,7 +20,7 @@ struct EdgePoints
 };
 // gray             - only support 8-bit grayscale
 CV_EXPORTS void EdgesSubPix(cv::Mat &gray, double alpha, int low, int high,
-                            EdgePoints &edge_points);
+                            int blocksize, EdgePoints &edge_points);
 ```
 
 # License

@@ -203,8 +203,8 @@ void extractSubPixPoints(Mat& dx, Mat& dy, Mat& edge, EdgePoints& edge_points)
 //---------------------------------------------------------------------
 //          INTERFACE FUNCTION
 //---------------------------------------------------------------------
-void EdgesSubPix(
-    cv::Mat& gray, double alpha, int low, int high, EdgePoints& edge_points)
+void EdgesSubPix(cv::Mat& gray, double alpha, int low, int high,
+    int blocksize, EdgePoints& edge_points)
 {
     Mat blur;
     GaussianBlur(gray, blur, Size(0, 0), alpha, alpha);
@@ -217,7 +217,7 @@ void EdgesSubPix(
     sepFilter2D(blur, dy, CV_16S, one, d);
 
     Mat edge;
-    Canny(gray, edge, low, high);
+    Canny(gray, edge, low, high, blocksize);
 
     // subpixel position extraction with steger's method and facet model 2nd
     // polynominal in 3x3 neighbourhood

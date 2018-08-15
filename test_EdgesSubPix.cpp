@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
     Mat image = imread(imageFile, IMREAD_GRAYSCALE);
     EdgePoints edge_points;
     int64 t0 = getCPUTickCount();
-    EdgesSubPix(image, alpha, low, high, edge_points);
+    EdgesSubPix(image, alpha, low, high, 3, edge_points);
     int64 t1 = getCPUTickCount();
     cout << "execution time is " << (t1 - t0) / (double)getTickFrequency()
          << " seconds" << endl;

@@ -8,8 +8,8 @@ struct EdgePoints {
     std::vector<float> response;
 };
 // only 8-bit
-CV_EXPORTS void EdgesSubPix(
-    cv::Mat& gray, double alpha, int low, int high, EdgePoints& edge_points);
+CV_EXPORTS void EdgesSubPix(cv::Mat& gray, double alpha, int low, int high,
+    int blocksize, EdgePoints& edge_points);
 
 CV_EXPORTS void DrawEdges(cv::Mat& rgb, cv::Mat& gray,
     const EdgePoints& edge_points, const cv::Scalar& color,
