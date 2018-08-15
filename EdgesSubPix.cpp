@@ -146,12 +146,6 @@ static inline void eigenvals(
     }
 }
 
-static inline double vector2angle(double x, double y)
-{
-    double a = std::atan2(y, x);
-    return a >= 0.0 ? a : a + CV_2PI;
-}
-
 void extractSubPixPoints(Mat& dx, Mat& dy, Mat& edge, EdgePoints& edge_points)
 {
     int w = dx.cols;
@@ -194,7 +188,7 @@ void extractSubPixPoints(Mat& dx, Mat& dy, Mat& edge, EdgePoints& edge_points)
                 }
                 edge_points.points.push_back(Point2f(x, y));
                 edge_points.response.push_back((float)(a[0] / scale));
-                edge_points.direction.push_back((float)vector2angle(ny, nx));
+                edge_points.direction.push_back((float)std::atan2(ny, nx));
             }
         }
     }
