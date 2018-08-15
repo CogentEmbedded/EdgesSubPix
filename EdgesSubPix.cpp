@@ -451,8 +451,9 @@ void DrawEdges(cv::Mat& rgb, cv::Mat& gray, const EdgePoints& edge_points,
     cv::resize(gray, gray2, gray.size() * scaleFactor, 0, 0, INTER_LINEAR);
     cv::cvtColor(gray2, rgb, CV_GRAY2BGR);
 
+    cv::Point2f offset(scaleFactor / 2. - 0.5, scaleFactor / 2. - 0.5);
     for (size_t i = 0; i < edge_points.points.size(); i++) {
-        cv::Point2f b = scaleFactor * edge_points.points[i];
+        cv::Point2f b = scaleFactor * edge_points.points[i] + offset;
         cv::line(rgb, b, b, color);
     }
 }
