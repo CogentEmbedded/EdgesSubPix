@@ -404,7 +404,7 @@ void extractSubPixPoints(Mat& dx, Mat& dy, Mat& edge, EdgePoints& edge_points)
                 double py = ny * t;
                 float x = (float)pt.x;
                 float y = (float)pt.y;
-                if (fabs(px) <= 1 && fabs(py) <= 1) {
+                if (fabs(px) <= 0.5 && fabs(py) <= 0.5) {
                     x += (float)px;
                     y += (float)py;
                 }
