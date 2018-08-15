@@ -1,11 +1,9 @@
 #include "EdgesSubPix.h"
-#include <cmath>
-#include <opencv2/opencv.hpp>
+
 using namespace cv;
 using namespace std;
 
-
-const double scale = 128.0;  // sum of half Canny filter is 128
+const double scale = 128.0; // sum of half Canny filter is 128
 
 static void getCannyKernel(OutputArray _d, double alpha)
 {
@@ -20,16 +18,14 @@ static void getCannyKernel(OutputArray _d, double alpha)
     kerF[r] = 0.0f;
     double a2 = alpha * alpha;
     float sum = 0.0f;
-    for (int x = 1; x <= r; ++x)
-    {
+    for (int x = 1; x <= r; ++x) {
         float v = (float)(-x * std::exp(-x * x / (2 * a2)));
         sum += v;
         kerF[r + x] = v;
         kerF[r - x] = -v;
     }
     float scale = 128 / sum;
-    for (int i = 0; i < ksize; ++i)
-    {
+    for (int i = 0; i < ksize; ++i) {
         kerF[i] *= scale;
     }
     Mat temp(ksize, 1, CV_32F, &kerF[0]);
@@ -37,10 +33,12 @@ static void getCannyKernel(OutputArray _d, double alpha)
 }
 
 // non-maximum supression and hysteresis
-static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high, Mat &dst)
+static void postCannyFilter(
+    const Mat& src, Mat& dx, Mat& dy, int low, int high, Mat& dst)
 {
     ptrdiff_t mapstep = src.cols + 2;
-    AutoBuffer<uchar> buffer((src.cols + 2)*(src.rows + 2) + mapstep * 3 * sizeof(int));
+    AutoBuffer<uchar> buffer(
+        (src.cols + 2) * (src.rows + 2) + mapstep * 3 * sizeof(int));
 
     // L2Gradient comparison with square
     high = high * high;
@@ -50,16 +48,16 @@ static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high,
     mag_buf[0] = (int*)(uchar*)buffer;
     mag_buf[1] = mag_buf[0] + mapstep;
     mag_buf[2] = mag_buf[1] + mapstep;
-    memset(mag_buf[0], 0, mapstep*sizeof(int));
+    memset(mag_buf[0], 0, mapstep * sizeof(int));
 
     uchar* map = (uchar*)(mag_buf[2] + mapstep);
     memset(map, 1, mapstep);
-    memset(map + mapstep*(src.rows + 1), 1, mapstep);
+    memset(map + mapstep * (src.rows + 1), 1, mapstep);
 
     int maxsize = std::max(1 << 10, src.cols * src.rows / 10);
     std::vector<uchar*> stack(maxsize);
-    uchar **stack_top = &stack[0];
-    uchar **stack_bottom = &stack[0];
+    uchar** stack_top = &stack[0];
+    uchar** stack_bottom = &stack[0];
 
     /* sector numbers
     (Top-Left Origin)
@@ -73,51 +71,55 @@ static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high,
     3   2   1
     */
 
-#define CANNY_PUSH(d)    *(d) = uchar(2), *stack_top++ = (d)
-#define CANNY_POP(d)     (d) = *--stack_top
+#define CANNY_PUSH(d) *(d) = uchar(2), *stack_top++ = (d)
+#define CANNY_POP(d) (d) = *--stack_top
 
 #if CV_SSE2
     bool haveSSE2 = checkHardwareSupport(CV_CPU_SSE2);
 #endif
 
-    // calculate magnitude and angle of gradient, perform non-maxima suppression.
-    // fill the map with one of the following values:
+    // calculate magnitude and angle of gradient, perform non-maxima
+    // suppression. fill the map with one of the following values:
     //   0 - the pixel might belong to an edge
     //   1 - the pixel can not belong to an edge
     //   2 - the pixel does belong to an edge
-    for (int i = 0; i <= src.rows; i++)
-    {
+    for (int i = 0; i <= src.rows; i++) {
         int* _norm = mag_buf[(i > 0) + 1] + 1;
-        if (i < src.rows)
-        {
+        if (i < src.rows) {
             short* _dx = dx.ptr<short>(i);
             short* _dy = dy.ptr<short>(i);
 
             int j = 0, width = src.cols;
 #if CV_SSE2
-            if (haveSSE2)
-            {
-                for (; j <= width - 8; j += 8)
-                {
-                    __m128i v_dx = _mm_loadu_si128((const __m128i *)(_dx + j));
-                    __m128i v_dy = _mm_loadu_si128((const __m128i *)(_dy + j));
+            if (haveSSE2) {
+                for (; j <= width - 8; j += 8) {
+                    __m128i v_dx = _mm_loadu_si128((const __m128i*)(_dx + j));
+                    __m128i v_dy = _mm_loadu_si128((const __m128i*)(_dy + j));
 
-                    __m128i v_dx_ml = _mm_mullo_epi16(v_dx, v_dx), v_dx_mh = _mm_mulhi_epi16(v_dx, v_dx);
-                    __m128i v_dy_ml = _mm_mullo_epi16(v_dy, v_dy), v_dy_mh = _mm_mulhi_epi16(v_dy, v_dy);
+                    __m128i v_dx_ml = _mm_mullo_epi16(v_dx, v_dx),
+                            v_dx_mh = _mm_mulhi_epi16(v_dx, v_dx);
+                    __m128i v_dy_ml = _mm_mullo_epi16(v_dy, v_dy),
+                            v_dy_mh = _mm_mulhi_epi16(v_dy, v_dy);
 
-                    __m128i v_norm = _mm_add_epi32(_mm_unpacklo_epi16(v_dx_ml, v_dx_mh), _mm_unpacklo_epi16(v_dy_ml, v_dy_mh));
-                    _mm_storeu_si128((__m128i *)(_norm + j), v_norm);
+                    __m128i v_norm
+                        = _mm_add_epi32(_mm_unpacklo_epi16(v_dx_ml, v_dx_mh),
+                            _mm_unpacklo_epi16(v_dy_ml, v_dy_mh));
+                    _mm_storeu_si128((__m128i*)(_norm + j), v_norm);
 
-                    v_norm = _mm_add_epi32(_mm_unpackhi_epi16(v_dx_ml, v_dx_mh), _mm_unpackhi_epi16(v_dy_ml, v_dy_mh));
-                    _mm_storeu_si128((__m128i *)(_norm + j + 4), v_norm);
+                    v_norm
+                        = _mm_add_epi32(_mm_unpackhi_epi16(v_dx_ml, v_dx_mh),
+                            _mm_unpackhi_epi16(v_dy_ml, v_dy_mh));
+                    _mm_storeu_si128((__m128i*)(_norm + j + 4), v_norm);
                 }
             }
 #elif CV_NEON
-            for (; j <= width - 8; j += 8)
-            {
-                int16x8_t v_dx = vld1q_s16(_dx + j), v_dy = vld1q_s16(_dy + j);
-                int16x4_t v_dxp = vget_low_s16(v_dx), v_dyp = vget_low_s16(v_dy);
-                int32x4_t v_dst = vmlal_s16(vmull_s16(v_dxp, v_dxp), v_dyp, v_dyp);
+            for (; j <= width - 8; j += 8) {
+                int16x8_t v_dx = vld1q_s16(_dx + j),
+                          v_dy = vld1q_s16(_dy + j);
+                int16x4_t v_dxp = vget_low_s16(v_dx),
+                          v_dyp = vget_low_s16(v_dy);
+                int32x4_t v_dst
+                    = vmlal_s16(vmull_s16(v_dxp, v_dxp), v_dyp, v_dyp);
                 vst1q_s32(_norm + j, v_dst);
 
                 v_dxp = vget_high_s16(v_dx), v_dyp = vget_high_s16(v_dy);
@@ -126,19 +128,18 @@ static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high,
             }
 #endif
             for (; j < width; ++j)
-                _norm[j] = int(_dx[j])*_dx[j] + int(_dy[j])*_dy[j];
+                _norm[j] = int(_dx[j]) * _dx[j] + int(_dy[j]) * _dy[j];
 
             _norm[-1] = _norm[src.cols] = 0;
-        }
-        else
-            memset(_norm - 1, 0, /* cn* */mapstep*sizeof(int));
+        } else
+            memset(_norm - 1, 0, /* cn* */ mapstep * sizeof(int));
 
         // at the very beginning we do not have a complete ring
         // buffer of 3 magnitude rows for non-maxima suppression
         if (i == 0)
             continue;
 
-        uchar* _map = map + mapstep*i + 1;
+        uchar* _map = map + mapstep * i + 1;
         _map[-1] = _map[src.cols] = 1;
 
         int* _mag = mag_buf[1] + 1; // take the central row
@@ -148,8 +149,7 @@ static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high,
         const short* _x = dx.ptr<short>(i - 1);
         const short* _y = dy.ptr<short>(i - 1);
 
-        if ((stack_top - stack_bottom) + src.cols > maxsize)
-        {
+        if ((stack_top - stack_bottom) + src.cols > maxsize) {
             int sz = (int)(stack_top - stack_bottom);
             maxsize = std::max(maxsize * 3 / 2, sz + src.cols);
             stack.resize(maxsize);
@@ -158,15 +158,15 @@ static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high,
         }
 
         int prev_flag = 0;
-        for (int j = 0; j < src.cols; j++)
-        {
-            #define CANNY_SHIFT 15
-            const int TG22 = (int)(0.4142135623730950488016887242097*(1 << CANNY_SHIFT) + 0.5);
+        for (int j = 0; j < src.cols; j++) {
+#define CANNY_SHIFT 15
+            const int TG22
+                = (int)(0.4142135623730950488016887242097 * (1 << CANNY_SHIFT)
+                    + 0.5);
 
             int m = _mag[j];
 
-            if (m > low)
-            {
+            if (m > low) {
                 int xs = _x[j];
                 int ys = _y[j];
                 int x = std::abs(xs);
@@ -174,21 +174,19 @@ static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high,
 
                 int tg22x = x * TG22;
 
-                if (y < tg22x)
-                {
-                    if (m > _mag[j - 1] && m >= _mag[j + 1]) goto __ocv_canny_push;
-                }
-                else
-                {
+                if (y < tg22x) {
+                    if (m > _mag[j - 1] && m >= _mag[j + 1])
+                        goto __ocv_canny_push;
+                } else {
                     int tg67x = tg22x + (x << (CANNY_SHIFT + 1));
-                    if (y > tg67x)
-                    {
-                        if (m > _mag[j + magstep2] && m >= _mag[j + magstep1]) goto __ocv_canny_push;
-                    }
-                    else
-                    {
+                    if (y > tg67x) {
+                        if (m > _mag[j + magstep2] && m >= _mag[j + magstep1])
+                            goto __ocv_canny_push;
+                    } else {
                         int s = (xs ^ ys) < 0 ? -1 : 1;
-                        if (m > _mag[j + magstep2 - s] && m > _mag[j + magstep1 + s]) goto __ocv_canny_push;
+                        if (m > _mag[j + magstep2 - s]
+                            && m > _mag[j + magstep1 + s])
+                            goto __ocv_canny_push;
                     }
                 }
             }
@@ -196,12 +194,10 @@ static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high,
             _map[j] = uchar(1);
             continue;
         __ocv_canny_push:
-            if (!prev_flag && m > high && _map[j - mapstep] != 2)
-            {
+            if (!prev_flag && m > high && _map[j - mapstep] != 2) {
                 CANNY_PUSH(_map + j);
                 prev_flag = 1;
-            }
-            else
+            } else
                 _map[j] = 0;
         }
 
@@ -213,11 +209,9 @@ static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high,
     }
 
     // now track the edges (hysteresis thresholding)
-    while (stack_top > stack_bottom)
-    {
+    while (stack_top > stack_bottom) {
         uchar* m;
-        if ((stack_top - stack_bottom) + 8 > maxsize)
-        {
+        if ((stack_top - stack_bottom) + 8 > maxsize) {
             int sz = (int)(stack_top - stack_bottom);
             maxsize = maxsize * 3 / 2;
             stack.resize(maxsize);
@@ -227,33 +221,41 @@ static void postCannyFilter(const Mat &src, Mat &dx, Mat &dy, int low, int high,
 
         CANNY_POP(m);
 
-        if (!m[-1])         CANNY_PUSH(m - 1);
-        if (!m[1])          CANNY_PUSH(m + 1);
-        if (!m[-mapstep - 1]) CANNY_PUSH(m - mapstep - 1);
-        if (!m[-mapstep])   CANNY_PUSH(m - mapstep);
-        if (!m[-mapstep + 1]) CANNY_PUSH(m - mapstep + 1);
-        if (!m[mapstep - 1])  CANNY_PUSH(m + mapstep - 1);
-        if (!m[mapstep])    CANNY_PUSH(m + mapstep);
-        if (!m[mapstep + 1])  CANNY_PUSH(m + mapstep + 1);
+        if (!m[-1])
+            CANNY_PUSH(m - 1);
+        if (!m[1])
+            CANNY_PUSH(m + 1);
+        if (!m[-mapstep - 1])
+            CANNY_PUSH(m - mapstep - 1);
+        if (!m[-mapstep])
+            CANNY_PUSH(m - mapstep);
+        if (!m[-mapstep + 1])
+            CANNY_PUSH(m - mapstep + 1);
+        if (!m[mapstep - 1])
+            CANNY_PUSH(m + mapstep - 1);
+        if (!m[mapstep])
+            CANNY_PUSH(m + mapstep);
+        if (!m[mapstep + 1])
+            CANNY_PUSH(m + mapstep + 1);
     }
 
     // the final pass, form the final image
     const uchar* pmap = map + mapstep + 1;
     uchar* pdst = dst.ptr();
-    for (int i = 0; i < src.rows; i++, pmap += mapstep, pdst += dst.step)
-    {
+    for (int i = 0; i < src.rows; i++, pmap += mapstep, pdst += dst.step) {
         for (int j = 0; j < src.cols; j++)
-            pdst[j] = (uchar)-(pmap[j] >> 1);
+            pdst[j] = (uchar) - (pmap[j] >> 1);
     }
 }
 
-static inline  double getAmplitude(Mat &dx, Mat &dy, int i, int j)
+static inline double getAmplitude(Mat& dx, Mat& dy, int i, int j)
 {
     Point2d mag(dx.at<short>(i, j), dy.at<short>(i, j));
     return norm(mag);
 }
 
-static inline void getMagNeighbourhood(Mat &dx, Mat &dy, Point &p, int w, int h, vector<double> &mag)
+static inline void getMagNeighbourhood(
+    Mat& dx, Mat& dy, Point& p, int w, int h, vector<double>& mag)
 {
     int top = p.y - 1 >= 0 ? p.y - 1 : p.y;
     int down = p.y + 1 < h ? p.y + 1 : p.y;
@@ -271,21 +273,29 @@ static inline void getMagNeighbourhood(Mat &dx, Mat &dy, Point &p, int w, int h,
     mag[8] = getAmplitude(dx, dy, down, right);
 }
 
-static inline void get2ndFacetModelIn3x3(vector<double> &mag, vector<double> &a)
+static inline void get2ndFacetModelIn3x3(
+    vector<double>& mag, vector<double>& a)
 {
-    a[0] = (-mag[0] + 2.0 * mag[1] - mag[2] + 2.0 * mag[3] + 5.0 * mag[4] + 2.0 * mag[5] - mag[6] + 2.0 * mag[7] - mag[8]) / 9.0;
+    a[0] = (-mag[0] + 2.0 * mag[1] - mag[2] + 2.0 * mag[3] + 5.0 * mag[4]
+               + 2.0 * mag[5] - mag[6] + 2.0 * mag[7] - mag[8])
+        / 9.0;
     a[1] = (-mag[0] + mag[2] - mag[3] + mag[5] - mag[6] + mag[8]) / 6.0;
     a[2] = (mag[6] + mag[7] + mag[8] - mag[0] - mag[1] - mag[2]) / 6.0;
-    a[3] = (mag[0] - 2.0 * mag[1] + mag[2] + mag[3] - 2.0 * mag[4] + mag[5] + mag[6] - 2.0 * mag[7] + mag[8]) / 6.0;
+    a[3] = (mag[0] - 2.0 * mag[1] + mag[2] + mag[3] - 2.0 * mag[4] + mag[5]
+               + mag[6] - 2.0 * mag[7] + mag[8])
+        / 6.0;
     a[4] = (-mag[0] + mag[2] + mag[6] - mag[8]) / 4.0;
-    a[5] = (mag[0] + mag[1] + mag[2] - 2.0 * (mag[3] + mag[4] + mag[5]) + mag[6] + mag[7] + mag[8]) / 6.0;
+    a[5] = (mag[0] + mag[1] + mag[2] - 2.0 * (mag[3] + mag[4] + mag[5])
+               + mag[6] + mag[7] + mag[8])
+        / 6.0;
 }
-/* 
+/*
    Compute the eigenvalues and eigenvectors of the Hessian matrix given by
    dfdrr, dfdrc, and dfdcc, and sort them in descending order according to
-   their absolute values. 
+   their absolute values.
 */
-static inline void eigenvals(vector<double> &a, double eigval[2], double eigvec[2][2])
+static inline void eigenvals(
+    vector<double>& a, double eigval[2], double eigvec[2][2])
 {
     // derivatives
     // fx = a[1], fy = a[2]
@@ -299,15 +309,15 @@ static inline void eigenvals(vector<double> &a, double eigval[2], double eigvec[
 
     /* Compute the eigenvalues and eigenvectors of the Hessian matrix. */
     if (dfdrc != 0.0) {
-        theta = 0.5*(dfdcc - dfdrr) / dfdrc;
-        t = 1.0 / (fabs(theta) + sqrt(theta*theta + 1.0));
-        if (theta < 0.0) t = -t;
-        c = 1.0 / sqrt(t*t + 1.0);
-        s = t*c;
-        e1 = dfdrr - t*dfdrc;
-        e2 = dfdcc + t*dfdrc;
-    }
-    else {
+        theta = 0.5 * (dfdcc - dfdrr) / dfdrc;
+        t = 1.0 / (fabs(theta) + sqrt(theta * theta + 1.0));
+        if (theta < 0.0)
+            t = -t;
+        c = 1.0 / sqrt(t * t + 1.0);
+        s = t * c;
+        e1 = dfdrr - t * dfdrc;
+        e2 = dfdcc + t * dfdrc;
+    } else {
         c = 1.0;
         s = 0.0;
         e1 = dfdrr;
@@ -316,9 +326,9 @@ static inline void eigenvals(vector<double> &a, double eigval[2], double eigvec[
     n1 = c;
     n2 = -s;
 
-    /* If the absolute value of an eigenvalue is larger than the other, put that
-    eigenvalue into first position.  If both are of equal absolute value, put
-    the negative one first. */
+    /* If the absolute value of an eigenvalue is larger than the other, put
+    that eigenvalue into first position.  If both are of equal absolute value,
+    put the negative one first. */
     if (fabs(e1) > fabs(e2)) {
         eigval[0] = e1;
         eigval[1] = e2;
@@ -326,16 +336,14 @@ static inline void eigenvals(vector<double> &a, double eigval[2], double eigvec[
         eigvec[0][1] = n2;
         eigvec[1][0] = -n2;
         eigvec[1][1] = n1;
-    }
-    else if (fabs(e1) < fabs(e2)) {
+    } else if (fabs(e1) < fabs(e2)) {
         eigval[0] = e2;
         eigval[1] = e1;
         eigvec[0][0] = -n2;
         eigvec[0][1] = n1;
         eigvec[1][0] = n1;
         eigvec[1][1] = n2;
-    }
-    else {
+    } else {
         if (e1 < e2) {
             eigval[0] = e1;
             eigval[1] = e2;
@@ -343,8 +351,7 @@ static inline void eigenvals(vector<double> &a, double eigval[2], double eigvec[
             eigvec[0][1] = n2;
             eigvec[1][0] = -n2;
             eigvec[1][1] = n1;
-        }
-        else {
+        } else {
             eigval[0] = e2;
             eigval[1] = e1;
             eigvec[0][0] = -n2;
@@ -361,7 +368,7 @@ static inline double vector2angle(double x, double y)
     return a >= 0.0 ? a : a + CV_2PI;
 }
 
-void extractSubPixPoints(Mat &dx, Mat &dy, Mat &edge, EdgePoints &edge_points)
+void extractSubPixPoints(Mat& dx, Mat& dy, Mat& edge, EdgePoints& edge_points)
 {
     int w = dx.cols;
     int h = dx.rows;
@@ -386,19 +393,18 @@ void extractSubPixPoints(Mat &dx, Mat &dy, Mat &edge, EdgePoints &edge_points)
                 double t = 0.0;
                 double ny = eigvec[0][0];
                 double nx = eigvec[0][1];
-                if (eigval[0] < 0.0)
-                {
+                if (eigval[0] < 0.0) {
                     double rx = a[1], ry = a[2], rxy = a[4], rxx = a[3] * 2.0,
                            ryy = a[5] * 2.0;
-                    t = -(rx * nx + ry * ny) / (rxx * nx * nx + 2.0 *
-                            rxy * nx * ny + ryy * ny * ny);
+                    t = -(rx * nx + ry * ny)
+                        / (rxx * nx * nx + 2.0 * rxy * nx * ny
+                              + ryy * ny * ny);
                 }
                 double px = nx * t;
                 double py = ny * t;
                 float x = (float)pt.x;
                 float y = (float)pt.y;
-                if (fabs(px) <= 1 && fabs(py) <= 1)
-                {
+                if (fabs(px) <= 1 && fabs(py) <= 1) {
                     x += (float)px;
                     y += (float)py;
                 }
@@ -413,8 +419,8 @@ void extractSubPixPoints(Mat &dx, Mat &dy, Mat &edge, EdgePoints &edge_points)
 //---------------------------------------------------------------------
 //          INTERFACE FUNCTION
 //---------------------------------------------------------------------
-void EdgesSubPix(cv::Mat &gray, double alpha, int low, int high,
-                 EdgePoints &edge_points)
+void EdgesSubPix(
+    cv::Mat& gray, double alpha, int low, int high, EdgePoints& edge_points)
 {
     Mat blur;
     GaussianBlur(gray, blur, Size(0, 0), alpha, alpha);
@@ -432,21 +438,20 @@ void EdgesSubPix(cv::Mat &gray, double alpha, int low, int high,
     int highThresh = cvRound(scale * high);
     postCannyFilter(gray, dx, dy, lowThresh, highThresh, edge);
 
-    // subpixel position extraction with steger's method and facet model 2nd polynominal in 3x3 neighbourhood
+    // subpixel position extraction with steger's method and facet model 2nd
+    // polynominal in 3x3 neighbourhood
     extractSubPixPoints(dx, dy, edge, edge_points);
-
 }
 
-void DrawEdges(cv::Mat &rgb, cv::Mat &gray, const EdgePoints &edge_points,
-               const cv::Scalar &color, const int scaleFactor)
+void DrawEdges(cv::Mat& rgb, cv::Mat& gray, const EdgePoints& edge_points,
+    const cv::Scalar& color, const int scaleFactor)
 {
     cv::Mat gray2;
 
     cv::resize(gray, gray2, gray.size() * scaleFactor, 0, 0, INTER_LINEAR);
     cv::cvtColor(gray2, rgb, CV_GRAY2BGR);
 
-    for (size_t i = 0; i < edge_points.points.size(); i++)
-    {
+    for (size_t i = 0; i < edge_points.points.size(); i++) {
         cv::Point2f b = scaleFactor * edge_points.points[i];
         cv::line(rgb, b, b, color);
     }
