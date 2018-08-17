@@ -153,10 +153,10 @@ void extractSubPixPoints(Mat& dx, Mat& dy, Mat& edge, EdgePoints& edge_points)
     edge_points.points.clear();
     edge_points.direction.clear();
     edge_points.response.clear();
-    for (int i = 0; i < edge.rows; i++) {
 #if defined(_OPENMP) && defined(NDEBUG)
 #pragma omp parallel for
 #endif
+    for (int i = 0; i < edge.rows; i++) {
         for (int j = 0; j < edge.cols; j++) {
             if (edge.at<uchar>(i, j) > 0) {
                 Point pt(j, i);
