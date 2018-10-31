@@ -146,10 +146,45 @@ static inline void eigenvals(
     }
 }
 
-void extractSubPixPoints(Mat& dx, Mat& dy, Mat& edge, EdgePoints& edge_points)
+std::tuple<cv::Point2f, float, float> improveSubPixPoint(
+    Mat& dx, Mat& dy, cv::Point pt)
 {
     int w = dx.cols;
     int h = dx.rows;
+
+    vector<double> magNeighbour(9);
+    getMagNeighbourhood(dx, dy, pt, w, h, magNeighbour);
+    vector<double> a(9);
+    get2ndFacetModelIn3x3(magNeighbour, a);
+
+    // Hessian eigen vector
+    double eigvec[2][2], eigval[2];
+    eigenvals(a, eigval, eigvec);
+    double t = 0.0;
+    double ny = eigvec[0][0];
+    double nx = eigvec[0][1];
+    if (eigval[0] < 0.0) {
+        double rx = a[1], ry = a[2], rxy = a[4], rxx = a[3] * 2.0,
+               ryy = a[5] * 2.0;
+        t = -(rx * nx + ry * ny)
+            / (rxx * nx * nx + 2.0 * rxy * nx * ny + ryy * ny * ny);
+    }
+    double px = nx * t;
+    double py = ny * t;
+    float x = (float)pt.x;
+    float y = (float)pt.y;
+    if (fabs(px) <= 0.5 + 10 * FLT_EPSILON
+        && fabs(py) <= 0.5 + 10 * FLT_EPSILON) {
+        x += (float)px;
+        y += (float)py;
+    }
+
+    return std::make_tuple(
+        Point2f(x, y), (float)(a[0] / scale), (float)std::atan2(ny, nx));
+}
+
+void extractSubPixPoints(Mat& dx, Mat& dy, Mat& edge, EdgePoints& edge_points)
+{
     edge_points.points.clear();
     edge_points.direction.clear();
     edge_points.response.clear();
@@ -160,43 +195,24 @@ void extractSubPixPoints(Mat& dx, Mat& dy, Mat& edge, EdgePoints& edge_points)
         for (int j = 0; j < edge.cols; j++) {
             if (edge.at<uchar>(i, j) > 0) {
                 Point pt(j, i);
-                vector<double> magNeighbour(9);
-                getMagNeighbourhood(dx, dy, pt, w, h, magNeighbour);
-                vector<double> a(9);
-                get2ndFacetModelIn3x3(magNeighbour, a);
 
-                // Hessian eigen vector
-                double eigvec[2][2], eigval[2];
-                eigenvals(a, eigval, eigvec);
-                double t = 0.0;
-                double ny = eigvec[0][0];
-                double nx = eigvec[0][1];
-                if (eigval[0] < 0.0) {
-                    double rx = a[1], ry = a[2], rxy = a[4], rxx = a[3] * 2.0,
-                           ryy = a[5] * 2.0;
-                    t = -(rx * nx + ry * ny)
-                        / (rxx * nx * nx + 2.0 * rxy * nx * ny
-                              + ryy * ny * ny);
-                }
-                double px = nx * t;
-                double py = ny * t;
-                float x = (float)pt.x;
-                float y = (float)pt.y;
-                if (fabs(px) <= 0.5 + 10 * FLT_EPSILON
-                    && fabs(py) <= 0.5 + 10 * FLT_EPSILON) {
-                    x += (float)px;
-                    y += (float)py;
-                }
-                edge_points.points.push_back(Point2f(x, y));
-                edge_points.response.push_back((float)(a[0] / scale));
-                edge_points.direction.push_back((float)std::atan2(ny, nx));
+                cv::Point2f improved;
+                float response;
+                float direction;
+
+                std::tie(improved, response, direction)
+                    = improveSubPixPoint(dx, dy, pt);
+
+                edge_points.points.push_back(improved);
+                edge_points.response.push_back(response);
+                edge_points.direction.push_back(direction);
             }
         }
     }
 }
 
 //---------------------------------------------------------------------
-//          INTERFACE FUNCTION
+//          INTERFACE FUNCTIONS
 //---------------------------------------------------------------------
 void EdgesSubPix(cv::Mat& gray, double alpha, int low, int high,
     int blocksize, EdgePoints& edge_points)
@@ -219,6 +235,48 @@ void EdgesSubPix(cv::Mat& gray, double alpha, int low, int high,
     extractSubPixPoints(dx, dy, edge, edge_points);
 }
 
+void ContoursSubPix(Mat& gray, Mat& binary, double alpha, int low, int high,
+    int blocksize, std::vector<EdgePoints>& contours)
+{
+    Mat blur;
+    GaussianBlur(gray, blur, Size(0, 0), alpha, alpha);
+
+    Mat d;
+    getCannyKernel(d, alpha);
+    Mat one = Mat::ones(Size(1, 1), CV_16S);
+    Mat dx, dy;
+    sepFilter2D(blur, dx, CV_16S, d, one);
+    sepFilter2D(blur, dy, CV_16S, one, d);
+
+    Mat edge;
+    Canny(gray, edge, low, high, blocksize);
+
+    // contours in pixel precision
+    vector<vector<Point>> contoursInPixel;
+    findContours(binary, contoursInPixel, cv::noArray(), cv::RETR_LIST,
+        CHAIN_APPROX_NONE);
+
+    // subpixel position extraction with steger's method and facet model 2nd
+    // polynominal in 3x3 neighbourhood
+    for (const auto& pixelContour : contoursInPixel) {
+        contours.emplace_back();
+        EdgePoints& edge_points = contours.back();
+
+        for (const auto& pt : pixelContour) {
+            cv::Point2f improved;
+            float response;
+            float direction;
+
+            std::tie(improved, response, direction)
+                = improveSubPixPoint(dx, dy, pt);
+
+            edge_points.points.push_back(improved);
+            edge_points.response.push_back(response);
+            edge_points.direction.push_back(direction);
+        }
+    }
+}
+
 void DrawEdges(cv::Mat& rgb, cv::Mat& gray, const EdgePoints& edge_points,
     const cv::Scalar& color, const int scaleFactor)
 {
@@ -232,4 +290,21 @@ void DrawEdges(cv::Mat& rgb, cv::Mat& gray, const EdgePoints& edge_points,
         cv::Point2f b = scaleFactor * edge_points.points[i] + offset;
         cv::line(rgb, b, b, color);
     }
+}
+
+void DrawContours(cv::Mat& rgb, cv::Mat& gray,
+    const std::vector<EdgePoints>& contours, const cv::Scalar& color,
+    const int scaleFactor)
+{
+    cv::Mat gray2;
+
+    cv::resize(gray, gray2, gray.size() * scaleFactor, 0, 0, INTER_LINEAR);
+    cv::cvtColor(gray2, rgb, CV_GRAY2BGR);
+
+    cv::Point2f offset(scaleFactor / 2. - 0.5, scaleFactor / 2. - 0.5);
+    for (const auto& edge_points : contours)
+        for (size_t i = 0; i < edge_points.points.size(); i++) {
+            cv::Point2f b = scaleFactor * edge_points.points[i] + offset;
+            cv::line(rgb, b, b, color);
+        }
 }
