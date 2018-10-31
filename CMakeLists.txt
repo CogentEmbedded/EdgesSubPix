@@ -4,7 +4,6 @@ project(EdgesSubPix VERSION 1.1)
 #------------------------------------------------------------------------------
 # Dependencies
 #------------------------------------------------------------------------------
-include(InstallRequiredSystemLibraries)
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
 
@@ -33,9 +32,12 @@ if (WIN32)
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
     set(CMAKE_SHARED_LINKER_FLAGS_RELEASE "${CMAKE_SHARED_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
     set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
+    if (MSVC)
+        add_compile_options(/W4)
+    endif(MSVC)
 endif()
 
-add_library(${PROJECT_NAME} STATIC EdgesSubPix.cpp EdgesSubPix.h)
+add_library(${PROJECT_NAME} STATIC EdgesSubPix.cpp)
 target_link_libraries(${PROJECT_NAME} ${OpenCV_LIBS})
 
 add_executable(Edge test_EdgesSubPix.cpp)
@@ -71,6 +73,11 @@ install(
     DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}
     )
 
+install(
+    FILES
+    EdgesSubPix.h
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    )
 
 install(TARGETS ${PROJECT_NAME}
     EXPORT ${PROJECT_NAMESPACE}Config
