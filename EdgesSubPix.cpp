@@ -283,7 +283,7 @@ void DrawEdges(cv::Mat& rgb, cv::Mat& gray, const EdgePoints& edge_points,
     cv::Mat gray2;
 
     cv::resize(gray, gray2, gray.size() * scaleFactor, 0, 0, INTER_LINEAR);
-    cv::cvtColor(gray2, rgb, CV_GRAY2BGR);
+    cv::cvtColor(gray2, rgb, cv::COLOR_GRAY2BGR);
 
     cv::Point2f offset(scaleFactor / 2. - 0.5, scaleFactor / 2. - 0.5);
     for (size_t i = 0; i < edge_points.points.size(); i++) {
@@ -299,7 +299,7 @@ void DrawContours(cv::Mat& rgb, cv::Mat& gray,
     cv::Mat gray2;
 
     cv::resize(gray, gray2, gray.size() * scaleFactor, 0, 0, INTER_LINEAR);
-    cv::cvtColor(gray2, rgb, CV_GRAY2BGR);
+    cv::cvtColor(gray2, rgb, cv::COLOR_GRAY2BGR);
 
     cv::Point2f offset(scaleFactor / 2. - 0.5, scaleFactor / 2. - 0.5);
     for (const auto& edge_points : contours)

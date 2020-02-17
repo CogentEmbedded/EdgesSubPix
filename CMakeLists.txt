@@ -6,6 +6,7 @@ project(EdgesSubPix VERSION 1.1)
 #------------------------------------------------------------------------------
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+set(OpenCV_DIR /home/egor/Documents/WaveAccess/opencv/build)
 
 find_package(OpenCV REQUIRED COMPONENTS core imgcodecs imgproc)
 include_directories(${OpenCV_INCLUDE_DIRS})
